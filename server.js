@@ -9,11 +9,20 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/portal_db',
-  // FORZA LA CONNESSIONE SU IPV4 (Risolve l'errore ENETUNREACH su Render)
-  connectionTimeoutMillis: 5000,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // Necessario per connessioni sicure cloud verso Supabase
+    rejectUnauthorized: false // Obbligatorio per le connessioni cloud SSL di Supabase
+  },
+  connectionTimeoutMillis: 10000, // Timeout esteso per l'avvio a freddo
+  idleTimeoutMillis: 30000
+});
+
+// Test della connessione all'avvio per verificare il corretto routing
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('Errore di connessione al database:', err);
+  } else {
+    console.log('Connessione a Supabase riuscita con successo:', res.rows[0]);
   }
 });
 
