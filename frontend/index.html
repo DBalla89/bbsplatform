@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portale Proposte Aziendali</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-950 font-sans min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('board')">
+                <span class="text-2xl">💡</span>
+                <h1 class="text-xl font-bold tracking-tight text-gray-900">Portale Proposte Project Work EMTIM</h1>
+            </div>
+            <div class="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 justify-center">
+                <button onclick="switchTab('board')" id="btn-board" class="px-4 py-2 text-sm font-semibold rounded-lg bg-brand-500 text-white transition-colors shadow-sm">Bacheca</button>
+                <button onclick="switchTab('create')" id="btn-create" class="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">Nuova Proposta</button>
+                <button onclick="switchTab('manage')" id="btn-manage" class="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">Gestisci Candidati</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-8">
+
+        <!-- 1. TAB BACHECA PROPOSTE -->
+        <div id="tab-board" class="space-y-6">
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-gray-900">Bacheca Proposte</h2>
+                    <p class="text-sm text-gray-500">Esplora le idee pubblicate e candidati a quelle di tuo interesse.</p>
+                </div>
+                <span id="proposal-count" class="text-xs font-semibold bg-brand-50 text-brand-700 px-3 py-1.5 rounded-full border border-brand-100">Caricamento...</span>
+            </div>
+            <div id="proposals-grid" class="grid gap-6 md:grid-cols-2">
+                <!-- Inserito dinamicamente -->
+            </div>
+        </div>
+
+        <!-- 2. TAB CREA PROPOSTA -->
+        <div id="tab-create" class="hidden max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Pubblica una Nuova Proposta</h2>
+            <p class="text-sm text-gray-500 mb-6">Condividi la tua idea con i colleghi allegando un documento descrittivo.</p>
+            <form id="proposal-form" onsubmit="handleCreateProposal(event)" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ID Creatore (UUID Utente)</label>
+                    <input type="text" id="creator_id" required value="00000000-0000-0000-0000-000000000001" placeholder="es. UUID utente registrato" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm bg-gray-50">
+                    <p class="text-xs text-gray-400 mt-1">Usa un UUID valido presente nella tabella `users` del database.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Titolo della Proposta</label>
+                    <input type="text" id="title" required placeholder="es. Automazione flussi di reporting" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descrizione dettagliata</label>
+                    <textarea id="description" rows="4" required placeholder="Descrivi l'idea e i benefici attesi..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Documento PDF (URL)</label>
+                    <input type="url" id="pdf_url" required placeholder="https://azienda.com/docs/proposta.pdf" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm">
+                </div>
+                <button type="submit" class="w-full bg-brand-500 text-white py-3 rounded-lg font-semibold hover:bg-brand-600 transition-colors shadow-sm text-sm">Pubblica Proposta</button>
+            </form>
+        </div>
+
+        <!-- 3. TAB GESTIONE CANDIDATI (Creatore) -->
+        <div id="tab-manage" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Gestione Candidati per Proposta</h2>
+                <p class="text-sm text-gray-500 mb-4">Seleziona una delle tue proposte per visualizzare i candidati e approvarli (l'approvazione rimuoverà automaticamente le altre candidature pendenti dell'utente)[cite: 6].</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Seleziona Proposta</label>
+                    <select id="manage-proposal-select" onchange="loadCandidatesForSelectedProposal()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none text-sm bg-white">
+                        <option value="">-- Seleziona una proposta --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-900">Elenco Candidati</h3>
+                    <span id="candidates-count" class="text-xs text-gray-500">Seleziona una proposta</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidato</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stato</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidates-table-body" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                               <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">Nessuna proposta selezionata.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500 mt-12">
+        Portale Proposte Aziendali &bull; Connesso al server Express & PostgreSQL[cite: 6]
+    </footer>
+
+    <!-- Script di Integrazione Client-Side -->
+    <script>
+        const API_URL = 'https://bbsplatform.onrender.com/api';
+
+        function switchTab(tab) {
+            ['board', 'create', 'manage'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`btn-${t}`).className = 'px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors';
+            });
+
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`btn-${tab}`).className = 'px-4 py-2 text-sm font-semibold rounded-lg bg-brand-500 text-white transition-colors shadow-sm';
+
+            if (tab === 'board') loadProposals();
+            if (tab === 'manage') loadProposalsIntoDropdown();
+        }
+
+        // 1. Carica Bacheca
+        async function loadProposals() {
+            const grid = document.getElementById('proposals-grid');
+            const countEl = document.getElementById('proposal-count');
+            grid.innerHTML = '<p class="text-gray-500 col-span-2 text-center py-8 text-sm">Caricamento proposte...</p>';
+
+            try {
+                const res = await fetch(`${API_URL}/proposals`);
+                if (!res.ok) throw new Error('Errore di rete');
+                const proposals = await res.json();
+
+                countEl.textContent = `${proposals.length} attive`;
+
+                if (proposals.length === 0) {
+                    grid.innerHTML = '<p class="text-gray-500 col-span-2 text-center py-8 text-sm">Nessuna proposta trovata.</p>';
+                    return;
+                }
+
+                grid.innerHTML = proposals.map(p => `
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div>
+                            <div class="flex justify-between items-start mb-3 gap-2">
+                                <h3 class="text-lg font-bold text-gray-900">${escapeHtml(p.title)}</h3>
+                                <span class="text-[10px] bg-brand-50 text-brand-700 font-semibold px-2.5 py-1 rounded-full border border-brand-100 whitespace-nowrap">Attiva</span>
+                            </div>
+                            <p class="text-gray-600 text-sm mb-4 line-clamp-3">${escapeHtml(p.description)}</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                            <a href="${escapeHtml(p.pdf_url)}" target="_blank" rel="noopener noreferrer" class="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                                📄 Visualizza PDF
+                            </a>
+                            <button onclick="applyToProposal('${p.id}')" class="bg-brand-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-brand-600 transition-colors shadow-sm">
+                                Candidati
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                countEl.textContent = "Offline";
+                grid.innerHTML = '<p class="text-red-500 col-span-2 text-center py-8 text-sm">Impossibile connettersi al server backend su https://bbsplatform.onrender.com.</p>';
+            }
+        }
+
+        // 2. Crea Proposta
+        async function handleCreateProposal(e) {
+            e.preventDefault();
+            const creator_id = document.getElementById('creator_id').value;
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const pdf_url = document.getElementById('pdf_url').value;
+
+            try {
+                const res = await fetch(`${API_URL}/proposals`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ creator_id, title, description, pdf_url })
+                });
+
+                if (res.ok) {
+                    alert('Proposta pubblicata con successo!');
+                    document.getElementById('proposal-form').reset();
+                    switchTab('board');
+                } else {
+                    const data = await res.json();
+                    alert(`Errore: ${data.error || 'Impossibile pubblicare'}`);
+                }
+            } catch (err) {
+                alert('Errore di connessione al server.');
+            }
+        }
+
+        // 3. Invia Candidatura
+        async function applyToProposal(proposalId) {
+            const user_id = prompt("Inserisci il tuo UUID utente per candidarti:");
+            if (!user_id) return;
+
+            try {
+                const res = await fetch(`${API_URL}/applications`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proposal_id: proposalId, user_id })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Candidatura inviata con successo!');
+                } else {
+                    alert(`Errore: ${data.error || 'Candidatura fallita'}`);
+                }
+            } catch (err) {
+                alert('Errore di connessione al server.');
+            }
+        }
+
+        // Carica proposte nella tendina di gestione
+        async function loadProposalsIntoDropdown() {
+            const select = document.getElementById('manage-proposal-select');
+            select.innerHTML = '<option value="">Caricamento...</option>';
+            try {
+                const res = await fetch(`${API_URL}/proposals`);
+                const proposals = await res.json();
+                select.innerHTML = '<option value="">-- Seleziona una proposta --</option>' + 
+                    proposals.map(p => `<option value="${p.id}">${escapeHtml(p.title)}</option>`).join('');
+            } catch (err) {
+                select.innerHTML = '<option value="">Errore caricamento proposte</option>';
+            }
+        }
+
+        // Carica candidati per la proposta selezionata
+        async function loadCandidatesForSelectedProposal() {
+            const proposalId = document.getElementById('manage-proposal-select').value;
+            const tbody = document.getElementById('candidates-table-body');
+            const countEl = document.getElementById('candidates-count');
+
+            if (!proposalId) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">Nessuna proposta selezionata.</td></tr>';
+                countEl.textContent = 'Seleziona una proposta';
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">Caricamento candidati...</td></tr>';
+
+            try {
+                const res = await fetch(`${API_URL}/proposals/${proposalId}/candidates`);
+                const candidates = await res.json();
+
+                countEl.textContent = `${candidates.length} candidati`;
+
+                if (candidates.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">Nessun candidato per questa proposta.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = candidates.map(c => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(c.user_name)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(c.user_email)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                c.status === 'accepted' ? 'bg-green-100 text-green-800' : 
+                                c.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-brand-50 text-brand-700 border border-brand-100'
+                            }">${c.status}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            ${c.status === 'pending' ? `
+                                <button onclick="approveApplication('${c.id}')" class="bg-brand-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-brand-600 transition-colors shadow-sm">
+                                    Accetta
+                                </button>
+                            ` : '<span class="text-xs text-gray-400">Nessuna azione</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-sm text-red-500">Errore nel caricamento candidati.</td></tr>';
+            }
+        }
+
+        // Approva candidatura (Attiva la regola di esclusività nel backend)[cite: 6]
+        async function approveApplication(appId) {
+            if (!confirm("Sei sicuro di voler accettare questo candidato? Verranno rimosse automaticamente tutte le sue altre candidature pendenti.")) return;
+
+            try {
+                const res = await fetch(`${API_URL}/applications/${appId}/approve`, {
+                    method: 'PATCH'
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Candidatura approvata con successo! Regola di esclusività applicata.');
+                    loadCandidatesForSelectedProposal();
+                } else {
+                    alert(`Errore: ${data.error || 'Impossibile approvare'}`);
+                }
+            } catch (err) {
+                alert('Errore di connessione al server.');
+            }
+        }
+
+        function escapeHtml(str) {
+            return str ? str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : '';
+        }
+
+        // Avvio iniziale
+        loadProposals();
+    </script>
+</body>
+</html>
