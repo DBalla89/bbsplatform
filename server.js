@@ -1,28 +1,29 @@
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const { Pool } = require('pg');
-require('dotenv').config();
-
+// Configurazione avanzata del pool per ambienti Cloud (Render / Supabase)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // Obbligatorio per le connessioni cloud SSL di Supabase
+    rejectUnauthorized: false // Necessario per validare il certificato SSL di Supabase nel cloud
   },
-  connectionTimeoutMillis: 10000, // Timeout esteso per l'avvio a freddo
+  connectionTimeoutMillis: 10000, // Timeout di 10 secondi per evitare blocchi infiniti
   idleTimeoutMillis: 30000
 });
 
-// Test della connessione all'avvio per verificare il corretto routing
-pool.query('SELECT NOW()', (err, res) => {
+// Test di verifica connessione all'avvio
+pool.connect((err, client, release) => {
   if (err) {
-    console.error('Errore di connessione al database:', err);
+    console.error('Errore critico di connessione al database:', err.stack);
   } else {
-    console.log('Connessione a Supabase riuscita con successo:', res.rows[0]);
+    console.log('Connessione al database stabilita con successo!');
+    release();
   }
 });
 
@@ -32,7 +33,7 @@ app.get('/api/proposals', async (req, res) => {
     const result = await pool.query('SELECT * FROM proposals ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('Errore query proposals:', err);
     res.status(500).json({ error: 'Errore interno del server' });
   }
 });
@@ -47,7 +48,7 @@ app.post('/api/proposals', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error('Errore inserimento proposal:', err);
     res.status(500).json({ error: 'Errore durante la creazione della proposta' });
   }
 });
@@ -62,7 +63,7 @@ app.post('/api/applications', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error('Errore inserimento application:', err);
     res.status(400).json({ error: 'Candidatura già esistente o errore nei dati' });
   }
 });
@@ -80,7 +81,7 @@ app.get('/api/proposals/:id/candidates', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('Errore recupero candidati:', err);
     res.status(500).json({ error: 'Errore nel recupero dei candidati' });
   }
 });
@@ -105,13 +106,11 @@ app.patch('/api/applications/:id/approve', async (req, res) => {
 
     const { user_id } = appResult.rows[0];
 
-    // Aggiorna lo stato in accepted
     await client.query(
       `UPDATE applications SET status = 'accepted' WHERE id = $1`,
       [applicationId]
     );
 
-    // Rimuovi tutte le altre candidature pendenti dello stesso utente
     await client.query(
       `DELETE FROM applications WHERE user_id = $1 AND id != $2 AND status = 'pending'`,
       [user_id, applicationId]
@@ -121,13 +120,14 @@ app.patch('/api/applications/:id/approve', async (req, res) => {
     res.json({ success: true, message: 'Candidatura accettata e altre candidature pendenti rimosse con successo.' });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Errore durante l\'approvazione' });
+    console.error('Errore approvazione:', err);
+    res.status(500).json({ error: "Errore durante l'approvazione" });
   } finally {
     client.release();
   }
 });
 
+// Configurazione porta richiesta da Render (Default 10000)
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server running on port ${PORT}`);
