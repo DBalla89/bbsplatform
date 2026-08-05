@@ -7,8 +7,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const { Pool } = require('pg');
+require('dotenv').config();
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/portal_db'
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/portal_db',
+  // FORZA LA CONNESSIONE SU IPV4 (Risolve l'errore ENETUNREACH su Render)
+  connectionTimeoutMillis: 5000,
+  ssl: {
+    rejectUnauthorized: false // Necessario per connessioni sicure cloud verso Supabase
+  }
 });
 
 // GET: Tutte le proposte
