@@ -42,7 +42,7 @@ app.post('/api/applications', async (req, res) => {
   const { proposal_id, user_id } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO applications (proposal_id, user_id, status) VALUES ($1, $2, 'pending') RETURNING *',
+      "INSERT INTO applications (proposal_id, user_id, status) VALUES ($1, $2, 'pending') RETURNING *",
       [proposal_id, user_id]
     );
     res.status(201).json(result.rows[0]);
